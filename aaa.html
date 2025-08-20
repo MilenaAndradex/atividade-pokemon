@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cadastro de Alunos Pokémon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100">
+    <div id="app"></div>
+
+    <script>
+      const pokemons = {
+        Squirtle: [
+          { nome: "Squirtle", img: "https://img.pokemondb.net/artwork/squirtle.jpg" },
+          { nome: "Wartortle", img: "https://img.pokemondb.net/artwork/wartortle.jpg" },
+          { nome: "Blastoise", img: "https://img.pokemondb.net/artwork/blastoise.jpg" }
+        ],
+        Bulbasaur: [
+          { nome: "Bulbasaur", img: "https://img.pokemondb.net/artwork/bulbasaur.jpg" },
+          { nome: "Ivysaur", img: "https://img.pokemondb.net/artwork/ivysaur.jpg" },
+          { nome: "Venusaur", img: "https://img.pokemondb.net/artwork/venusaur.jpg" }
+        ],
+        Charmander: [
+          { nome: "Charmander", img: "https://img.pokemondb.net/artwork/charmander.jpg" },
+          { nome: "Charmeleon", img: "https://img.pokemondb.net/artwork/charmeleon.jpg" },
+          { nome: "Charizard", img: "https://img.pokemondb.net/artwork/charizard.jpg" }
+        ]
+      };
+
+      let alunos = JSON.parse(localStorage.getItem("alunos")) || [];
+      let currentTab = 'cadastro';
+
+      function salvar() {
+        localStorage.setItem("alunos", JSON.stringify(alunos));
+        render();
+      }
+
+      function adicionarAluno() {
+        const nome = document.getElementById("nome").value;
+        const pokemon = document.getElementById("pokemon").value;
+        if (!nome) return;
+        alunos.push({ nome, pokemon, pontos: 0 });
+        document.getElementById("nome").value = "";
+        salvar();
+      }
+
+      function adicionarPontos(i) {
+        const pontos = Number(document.getElementById("pontos-"+i).value);
+        alunos[i].pontos += pontos;
+        document.getElementById("pontos-"+i).value = "";
+        salvar();
+      }
+
+      function removerAluno(i) {
+        if (confirm("Tem certeza que deseja remover este aluno?")) {
+          alunos.splice(i, 1);
+          salvar();
+        }
+      }
+
+      function getPokemonEvoluido(aluno) {
+        const evolucao = Math.min(Math.floor(aluno.pontos / 100), 2);
+        return pokemons[aluno.pokemon][evolucao];
+      }
+
+      function changeTab(tab) {
+        currentTab = tab;
+        render();
+      }
+
+      function getRankingGeral() {
+        return [...alunos].sort((a, b) => b.pontos - a.pontos);
+      }
+
+      function getRankingPorPokemon() {
+        const rankings = {};
+        Object.keys(pokemons).forEach(pokemon => {
+          rankings[pokemon] = alunos
+            .filter(aluno => aluno.pokemon === pokemon)
+            .sort((a, b) => b.pontos - a.pontos);
+        });
+        return rankings;
+      }
+
+      function getMedalha(posicao) {
+        if (posicao === 0) return "🥇";
+        if (posicao === 1) return "🥈";
+        if (posicao === 2) return "🥉";
+        return `${posicao + 1}º`;
+      }
+
+      function renderCadastro() {
+        return `
+          <div class="flex gap-2 mb-4">
+            <input id="nome" class="border p-2 rounded w-full" placeholder="Nome do aluno" />
+            <select id="pokemon" class="border p-2 rounded">
+              ${Object.keys(pokemons).map(p => `<option value="${p}">${p}</option>`).join("")}
+            </select>
+            <button onclick="adicionarAluno()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Adicionar</button>
+          </div>
+          <ul>
+            ${alunos.map((aluno,i) => {
+              const poke = getPokemonEvoluido(aluno);
+              return `
+              <li class="border p-4 mb-3 rounded shadow bg-white">
+                <div class="flex justify-between items-start mb-2">
+                  <div>
+                    <p class="text-xl font-bold text-gray-800">${aluno.nome}</p>
+                    <p class="text-gray-600">Pokémon: ${poke.nome}</p>
+                  </div>
+                  <button onclick="removerAluno(${i})" class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600">Remover</button>
+                </div>
+                <img src="${poke.img}" alt="${poke.nome}" class="w-32 h-32 object-contain mb-2" />
+                <p class="text-lg font-semibold text-blue-600">Pontos: ${aluno.pontos}</p>
+                <div class="flex gap-2 mt-3 items-center">
+                  <input id="pontos-${i}" type="number" class="border p-2 rounded w-24" placeholder="Pontos" />
+                  <button onclick="adicionarPontos(${i})" class="bg-green-500 text-white px-3 py-2 rounded hover:bg-green-600">Adicionar pontos</button>
+                </div>
+              </li>`;
+            }).join("")}
+          </ul>
+        `;
+      }
+
+      function renderRankingGeral() {
+        const ranking = getRankingGeral();
+        return `
+          <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">🏆 Ranking Geral</h2>
+            ${ranking.length === 0 ? 
+              '<p class="text-center text-gray-500">Nenhum aluno cadastrado ainda.</p>' :
+              `<div class="space-y-4">
+                ${ranking.map((aluno, i) => {
+                  const poke = getPokemonEvoluido(aluno);
+                  return `
+                  <div class="flex items-center gap-4 p-4 border rounded-lg ${i < 3 ? 'bg-gradient-to-r ' + (i === 0 ? 'from-yellow-100 to-yellow-200' : i === 1 ? 'from-gray-100 to-gray-200' : 'from-orange-100 to-orange-200') : 'bg-gray-50'}">
+                    <div class="text-2xl font-bold ${i < 3 ? 'text-2xl' : 'text-lg'}">${getMedalha(i)}</div>
+                    <img src="${poke.img}" alt="${poke.nome}" class="w-16 h-16 object-contain" />
+                    <div class="flex-1">
+                      <p class="font-bold text-lg">${aluno.nome}</p>
+                      <p class="text-gray-600">${poke.nome}</p>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-2xl font-bold text-blue-600">${aluno.pontos}</p>
+                      <p class="text-sm text-gray-500">pontos</p>
+                    </div>
+                  </div>`;
+                }).join("")}
+              </div>`
+            }
+          </div>
+        `;
+      }
+
+      function renderRankingPokemon() {
+        const rankings = getRankingPorPokemon();
+        return `
+          <div class="space-y-6">
+            ${Object.keys(pokemons).map(pokemon => `
+              <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-xl font-bold mb-4 text-center text-gray-800">🏆 Ranking ${pokemon}</h3>
+                ${rankings[pokemon].length === 0 ? 
+                  '<p class="text-center text-gray-500">Nenhum aluno com este Pokémon.</p>' :
+                  `<div class="space-y-3">
+                    ${rankings[pokemon].map((aluno, i) => {
+                      const poke = getPokemonEvoluido(aluno);
+                      return `
+                      <div class="flex items-center gap-3 p-3 border rounded ${i < 3 ? 'bg-gradient-to-r ' + (i === 0 ? 'from-yellow-50 to-yellow-100' : i === 1 ? 'from-gray-50 to-gray-100' : 'from-orange-50 to-orange-100') : 'bg-gray-50'}">
+                        <div class="text-lg font-bold">${getMedalha(i)}</div>
+                        <img src="${poke.img}" alt="${poke.nome}" class="w-12 h-12 object-contain" />
+                        <div class="flex-1">
+                          <p class="font-semibold">${aluno.nome}</p>
+                          <p class="text-sm text-gray-600">${poke.nome}</p>
+                        </div>
+                        <div class="text-right">
+                          <p class="text-lg font-bold text-blue-600">${aluno.pontos}</p>
+                          <p class="text-xs text-gray-500">pontos</p>
+                        </div>
+                      </div>`;
+                    }).join("")}
+                  </div>`
+                }
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function render() {
+        const app = document.getElementById("app");
+        app.innerHTML = `
+          <div class="p-6 max-w-4xl mx-auto">
+            <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Sistema Alunos Pokémon</h1>
+            
+            <!-- Navigation Tabs -->
+            <div class="flex mb-6 bg-white rounded-lg shadow overflow-hidden">
+              <button onclick="changeTab('cadastro')" class="flex-1 py-3 px-4 font-semibold ${currentTab === 'cadastro' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">
+                📝 Cadastro
+              </button>
+              <button onclick="changeTab('ranking-geral')" class="flex-1 py-3 px-4 font-semibold ${currentTab === 'ranking-geral' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">
+                🏆 Ranking Geral
+              </button>
+              <button onclick="changeTab('ranking-pokemon')" class="flex-1 py-3 px-4 font-semibold ${currentTab === 'ranking-pokemon' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">
+                🎯 Ranking por Pokémon
+              </button>
+            </div>
+
+            <!-- Content -->
+            <div>
+              ${currentTab === 'cadastro' ? renderCadastro() : ''}
+              ${currentTab === 'ranking-geral' ? renderRankingGeral() : ''}
+              ${currentTab === 'ranking-pokemon' ? renderRankingPokemon() : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      render();
+    </script>
+  </body>
+</html>
